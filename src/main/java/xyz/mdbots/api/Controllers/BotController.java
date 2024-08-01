@@ -13,7 +13,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import xyz.mdbots.api.Data.BotModel;
 import java.util.List;
-import org.springframework.web.bind.annotation.PutMapping;
 
 /**
  *
@@ -35,13 +34,16 @@ public class BotController {
 
     @GetMapping("/{botId}")
     public ResponseEntity<?> findByBotId(@PathVariable String botId) {
-        if (botId == null || botId.trim().isEmpty()) return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Id de bot inválido");
-        
+        if (botId == null || botId.trim().isEmpty())
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Id de bot inválido");
+
         BotModel bot = this._botsRepository.findByBotId(botId);
-        if (bot != null) return ResponseEntity.ok(bot);
-        else return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("O bot de id " + botId + " não existe");
+        if (bot != null)
+            return ResponseEntity.ok(bot);
+        else
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("O bot de id " + botId + " não existe");
     }
-    
+
     @PostMapping
     public BotModel createBot(@RequestBody BotModel bot) {
         return this._botsRepository.saveBot(bot);

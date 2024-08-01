@@ -5,7 +5,6 @@ import xyz.mdbots.api.Repositories.Interfaces.IBotRepository;
 import org.springframework.stereotype.Service;
 import xyz.mdbots.api.Data.BotModel;
 import java.util.List;
-import java.util.Optional;
 
 /**
  *
@@ -16,17 +15,17 @@ import java.util.Optional;
 public class BotRepository {
 
     @Autowired
-    private IBotRepository _iBotRepository;
+    private IBotRepository iBotRepository;
 
     public List<BotModel> findAll() {
-        return this._iBotRepository.findAll();
+        return this.iBotRepository.findAll();
     }
 
     public BotModel saveBot(BotModel bot) {
-        return this._iBotRepository.save(bot);
+        return this.iBotRepository.save(bot);
     }
 
     public BotModel findByBotId(String botId) {
-        return this._iBotRepository.findByBotId(botId);
+        return this.iBotRepository.findByBotId(botId);
     }
 }
