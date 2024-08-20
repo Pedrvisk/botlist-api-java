@@ -1,51 +1,41 @@
 package xyz.mdbots.api.Controllers;
 
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.GetMapping;
-import xyz.mdbots.api.Repositories.BotRepository;
-import org.springframework.http.ResponseEntity;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.http.HttpStatus;
-import xyz.mdbots.api.Data.BotModel;
 import java.util.List;
 
-/**
- *
- * @author Pedrovisk
- * @timestamp 2024-07-26 15:32:49
- */
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
+
+import xyz.mdbots.api.Data.BotModel;
+import xyz.mdbots.api.Repositories.BotRepository;
+
 @RestController
 @RequestMapping("/bots")
-@Tag(name = "Endpoint de Bot", description = "Destinado ao CRUD de Bot")
 public class BotController {
 
     @Autowired
-    BotRepository _botsRepository;
+    BotRepository botsRepository;
 
     @GetMapping
     public List<BotModel> findAllBots() {
-        return this._botsRepository.findAll();
+        return this.botsRepository.findAll();
     }
 
     @GetMapping("/{botId}")
-    public ResponseEntity<?> findByBotId(@PathVariable String botId) {
+    public ResponseEntity<BotModel> findByBotId(@PathVariable String botId) {
         if (botId == null || botId.trim().isEmpty())
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Id de bot inválido");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Id de bot inválido");
 
-        BotModel bot = this._botsRepository.findByBotId(botId);
-        if (bot != null)
+        BotModel bot = this.botsRepository.findByBotId(botId);
+        if (bot != null) {
             return ResponseEntity.ok(bot);
-        else
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("O bot de id " + botId + " não existe");
-    }
-
-    @PostMapping
-    public BotModel createBot(@RequestBody BotModel bot) {
-        return this._botsRepository.saveBot(bot);
+        } else {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Não encontrado o bot de id " + botId);
+        }
     }
 }

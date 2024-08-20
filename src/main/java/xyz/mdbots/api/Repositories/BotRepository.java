@@ -1,16 +1,13 @@
 package xyz.mdbots.api.Repositories;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import xyz.mdbots.api.Repositories.Interfaces.IBotRepository;
-import org.springframework.stereotype.Service;
-import xyz.mdbots.api.Data.BotModel;
 import java.util.List;
 
-/**
- *
- * @author Pedrovisk
- * @timestamp 2024-07-26 16:38:10
- */
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import xyz.mdbots.api.Data.BotModel;
+import xyz.mdbots.api.Repositories.Interfaces.IBotRepository;
+
 @Service
 public class BotRepository {
 

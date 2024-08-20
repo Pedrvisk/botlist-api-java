@@ -1,45 +1,31 @@
 package xyz.mdbots.api.Services;
 
-import org.springframework.web.reactive.function.client.WebClientResponseException;
-import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.web.util.UriComponentsBuilder;
-import xyz.mdbots.api.Services.Interfaces.TokenResponse;
 import org.springframework.stereotype.Service;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import reactor.core.publisher.Mono;
+import org.springframework.web.reactive.function.BodyInserters;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
+import org.springframework.web.util.UriComponentsBuilder;
 
-/**
- *
- * @author Pedrovisk
- * @timestamp 2024-07-31 12:02:54
- */
+import reactor.core.publisher.Mono;
+import xyz.mdbots.api.Config.DiscordConfig;
+import xyz.mdbots.api.Services.Models.DiscordTokenModel;
+import xyz.mdbots.api.Services.Models.DiscordUserModel;
+
 @Service
 public class DiscordAuth {
 
-    private WebClient webClient;
+    @Autowired
+    DiscordConfig discordConfig;
 
     @Value("${discord.oauth.clientid}")
     private String clientId;
 
-    @Value("${discord.oauth.clientsecret}")
+    @Value("${discord.oauth.secret}")
     private String clientSecret;
 
-    @Value("${discord.oauth.redirecturi}")
+    @Value("${discord.oauth.redirect}")
     private String redirectUri;
-
-    @Value("${discord.oauth.baseurl}")
-    private String baseUrl;
-
-    public WebClient DiscordOAuthInstance() {
-        return this.webClient = WebClient.builder()
-                .baseUrl(baseUrl)
-                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE)
-                .build();
-    }
 
     public String getOAuthUrl() {
         return UriComponentsBuilder.newInstance()
@@ -53,50 +39,70 @@ public class DiscordAuth {
                 .build().toUriString();
     }
 
-    public Mono<TokenResponse> requestToken(String code) {
-        if (code == null || code.isEmpty()) {
-            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Code não definido"));
-        }
+    public Mono<DiscordTokenModel> requestToken(String code) {
+        if (code == null || code.isEmpty())
+            return Mono.error(new RuntimeException("Code não definido"));
 
-        String body = UriComponentsBuilder.newInstance()
-                .queryParam("client_id", clientId)
-                .queryParam("client_secret", clientSecret)
-                .queryParam("grant_type", "authorization_code")
-                .queryParam("redirect_uri", redirectUri)
-                .queryParam("code", code)
-                .build()
-                .toUriString();
+        var body = BodyInserters.fromFormData("client_id", clientId)
+                .with("client_secret", clientSecret)
+                .with("grant_type", "authorization_code")
+                .with("redirect_uri", redirectUri)
+                .with("code", code);
 
-        return webClient.post()
+        return discordConfig.authWebClient().post()
                 .uri("/oauth2/token")
-                .bodyValue(body)
+                .body(body)
                 .retrieve()
-                .bodyToMono(TokenResponse.class)
-                .onErrorResume(WebClientResponseException.class, e
-                        -> Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Erro ao solicitar token", e))
-                );
+                .bodyToMono(DiscordTokenModel.class)
+                .onErrorResume(WebClientResponseException.class,
+                        e -> Mono.error(new RuntimeException("Erro ao solicitar token", e)));
     }
 
-    public Mono<TokenResponse> refreshToken(String refreshToken) {
-        if (refreshToken == null || refreshToken.isEmpty()) {
-            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "RefreshToken não definido"));
-        }
+    public Mono<DiscordTokenModel> refreshToken(String refreshToken) {
+        if (refreshToken == null || refreshToken.isEmpty())
+            return Mono.error(new RuntimeException("RefreshToken não definido"));
 
-        String body = UriComponentsBuilder.newInstance()
-                .queryParam("client_id", clientId)
-                .queryParam("client_secret", clientSecret)
-                .queryParam("grant_type", "refresh_token")
-                .queryParam("refresh_token", refreshToken)
-                .build()
-                .toUriString();
+        var body = BodyInserters.fromFormData("client_id", clientId)
+                .with("client_secret", clientSecret)
+                .with("refresh_token", refreshToken)
+                .with("redirect_uri", redirectUri)
+                .with("grant_type", "refresh_token");
 
-        return webClient.post()
+        return discordConfig.authWebClient().post()
                 .uri("/oauth2/token")
                 .bodyValue(body)
                 .retrieve()
-                .bodyToMono(TokenResponse.class)
-                .onErrorResume(WebClientResponseException.class, e
-                        -> Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Erro ao atualizar o token", e))
-                );
+                .bodyToMono(DiscordTokenModel.class)
+                .onErrorResume(WebClientResponseException.class,
+                        e -> Mono.error(new RuntimeException("Erro ao atualizar o token", e)));
+    }
+
+    public Mono<DiscordUserModel> fetchAuthUser(String token) {
+        if (token == null || token.isEmpty())
+            return Mono.error(new RuntimeException("Token não definido"));
+
+        return discordConfig.authWebClient().get()
+                .uri("/users/@me")
+                .headers(h -> h.setBearerAuth(token))
+                .retrieve()
+                .bodyToMono(DiscordUserModel.class)
+                .retry(2)
+                .map(data -> {
+                    String format = data.getAvatar() != null && data.getAvatar().startsWith("a_")
+                            ? "gif"
+                            : "png";
+
+                    String avatarUrl = data.getAvatar() != null
+                            ? String.format("https://cdn.discordapp.com/avatars/%s/%s.%s?size=4096",
+                                    data.getId(),
+                                    data.getAvatar(), format)
+                            : "https://cdn.discordapp.com/embed/avatars/0.png?size=4096";
+
+                    data.setAvatarUrl(avatarUrl);
+                    return data;
+                })
+                .onErrorResume(WebClientResponseException.class,
+                        e -> Mono.error(new RuntimeException(
+                                "Erro ao buscar dados do usuário autenticado", e)));
     }
 }
